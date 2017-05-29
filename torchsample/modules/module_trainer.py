@@ -746,29 +746,26 @@ class ModuleTrainer(object):
                        loader,
                        cuda_device=-1,
                        verbose=1):
-        prediction_list = []
+        predictions = []
+        predict_probs = []
         for batch_idx, batch_data in enumerate(loader):
-            if not isinstance(batch_data, (tuple,list)):
-                batch_data = [batch_data]
-            input_batch = batch_data[0]
-            if not isinstance(input_batch, (list,tuple)):
-                input_batch = [input_batch]
-            input_batch = [Variable(ins) for ins in input_batch]
+            if isinstance(batch_data, (tuple,list)):
+                input_batch = batch_data[0]
             if cuda_device > -1:
-                input_batch = [ins.cuda(cuda_device) for ins in input_batch]
+                input_batch = Variable(input_batch.cuda(cuda_device), volatile=True)
+            p_onehot = self.model(input_batch)
+            sum = th.sum(p_onehot.data, 1)
+            max_value, predicted = th.max(p_onehot.data, 1)
+            predict_proba = max_value / sum
+            predictions.append(predicted)
+            predict_probs.append(predict_proba)
 
-            prediction_list.append(self.model(*input_batch))
-            
-        # concatenate all outputs of the same type together (when there are multiple outputs)
-        if len(prediction_list) > 0 and isinstance(prediction_list[0], (tuple,list)):
-            nb_out = len(prediction_list[0])
-            out_list = []
-            for out_i in range(nb_out):
-                precdiction_out_i = [prediction[out_i] for prediction in prediction_list]
-                out_list.append(th.cat(precdiction_out_i, 0))
-            return out_list
-            
-        return th.cat(prediction_list,0)
+        predictions = th.cat(predictions, 0)
+        predict_probs = th.cat(predict_probs, 0)
+        predictions = predictions.cpu().numpy()
+        predict_probs = predict_probs.cpu().numpy()
+
+        return predictions, predict_probs
 
     def predict_on_batch(self, 
                          inputs, 
