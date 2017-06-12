@@ -14,8 +14,8 @@ from torchsample.metrics import *
 
 import os
 from torchvision import datasets
-ROOT = '/users/ncullen/data'
-dataset = datasets.MNIST(ROOT, train=True, download=True)
+ROOT = '/home/wb/study/data/MNIST_data'
+dataset = datasets.MNIST(ROOT, train=True, download=False)
 x_train, y_train = th.load(os.path.join(dataset.root, 'processed/training.pt'))
 x_test, y_test = th.load(os.path.join(dataset.root, 'processed/test.pt'))
 
@@ -79,7 +79,7 @@ trainer.compile(loss='nll_loss',
                 #metrics=metrics, 
                 #callbacks=callbacks)
 
-trainer.fit_loader(train_loader, val_loader, nb_epoch=20, verbose=1)
+trainer.fit_loader(train_loader, val_loader, nb_epoch=20, cuda_device=0, verbose=1)
 
 
 

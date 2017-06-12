@@ -6,6 +6,7 @@ from __future__ import absolute_import
 
 import math
 from collections import OrderedDict
+import os
 
 import torch as th
 import torch.nn as nn
@@ -20,6 +21,7 @@ from ..constraints import ConstraintModule
 from ..initializers import InitializerModule
 from ..metrics import MetricsModule
 from ..regularizers import RegularizerModule
+from ..tb_log import TbLog
 
 
 class ModuleTrainer(object):
@@ -58,6 +60,10 @@ class ModuleTrainer(object):
 
         # other properties
         self._stop_training = False
+
+        self.tb_log = None
+        self.tb_verbose = 0
+        self.tb_scalar_info = {}
 
     def forward(self, *input):
         """
@@ -112,6 +118,20 @@ class ModuleTrainer(object):
             h.remove()
 
         return summary
+
+    def set_tb(self, tb_path, verbose=1):
+        self.tb_verbose = verbose
+        self.tb_log = TbLog(tb_path)
+
+    def write_scalar_summaries(self, epoch):
+        for tag, value in self.tb_scalar_info.items():
+            self.tb_log.scalar_summary(tag, value, epoch+1)
+
+    def write_histo_summaries(self, epoch):
+        for tag, value in self.model.named_parameters():
+            tag = tag.replace('.', '/')
+            self.tb_log.histo_summary(tag, to_np(value), epoch+1)
+            self.tb_log.histo_summary(tag + '/grad', to_np(value.grad), epoch+1)
 
     def set_loss(self, loss):
         self._loss = loss
@@ -633,6 +653,16 @@ class ModuleTrainer(object):
 
                 callbacks.on_epoch_end(epoch_idx, epoch_logs)
 
+                #for tensorboard
+                if self.tb_log:
+                    if self.tb_verbose >= 1:
+                        #self.write_scalar_summaries(epoch_idx)
+                        self.tb_log.scalar_summary('train_loss', loss.data[0], epoch_idx+1)
+                        self.tb_log.scalar_summary('train_acc', metric_logs['acc_metric'], epoch_idx+1)
+                    if self.tb_verbose >= 2:
+                        self.write_histo_summaries(epoch_idx)
+                    #self.tb_log.scalar_summary('accuracy', metric_logs['acc_metric'], epoch_idx)
+
                 # apply Epoch-level constraints if necessary
                 if self._has_constraints:
                     constraints.on_epoch_end(epoch_idx)
@@ -757,8 +787,8 @@ class ModuleTrainer(object):
             sum = th.sum(p_onehot.data, 1)
             max_value, predicted = th.max(p_onehot.data, 1)
             predict_proba = max_value / sum
-            predictions.append(predicted)
-            predict_probs.append(predict_proba)
+            predictions.extend(predicted)
+            predict_probs.extend(predict_proba)
 
         predictions = th.cat(predictions, 0)
         predict_probs = th.cat(predict_probs, 0)
