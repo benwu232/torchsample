@@ -470,7 +470,8 @@ class ModuleTrainer(object):
 
         callbacks.on_train_end(logs=train_logs)
 
-    def fit_loader(self, 
+    def fit_loader(self,
+                   qh,
                    loader, 
                    val_loader=None, 
                    nb_epoch=100,
@@ -533,11 +534,12 @@ class ModuleTrainer(object):
             }
             callbacks.on_train_begin(logs=train_begin_logs)
 
-            # calculate total number of batches
-            nb_batches = int(math.ceil(len(loader.dataset) / loader.batch_size))
-
             # loop through each epoch
             for epoch_idx in range(nb_epoch):
+                loader = qh.TrainDataBuilder.data
+                # calculate total number of batches
+                nb_batches = int(math.ceil(len(loader.dataset) / loader.batch_size))
+
                 epoch_logs = {
                     'nb_batches': nb_batches,
                     'nb_epoch': nb_epoch,
