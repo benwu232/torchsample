@@ -479,6 +479,7 @@ class ModuleTrainer(object):
                    metrics=None,
                    verbose=1):
 
+        self.model.train(mode=True)
         # store whether validation data was given
         if val_loader is None:
             has_validation_data = False
@@ -615,6 +616,7 @@ class ModuleTrainer(object):
                         regularizer_loss = regularizers(self.model)
                         loss += regularizer_loss
                         batch_logs['regularizer_loss'] = regularizer_loss.data[0]
+                        #print(regularizer_loss.data[0])
 
                     # add lagrangian constraints to loss if necessary
                     if self._has_lagrangian_constraints:
@@ -756,7 +758,7 @@ class ModuleTrainer(object):
         nb_batches = int(math.ceil(len(inputs[0]) / batch_size))
         prediction_list = []
         for batch_idx in range(nb_batches):
-            input_batch = [Variable(x[batch_idx*batch_size:(batch_idx+1)*batch_size]) for x in inputs]
+            input_batch = [Variable(x[batch_idx*batch_size:(batch_idx+1)*batch_size], volatile=True) for x in inputs]
 
             if cuda_device > -1:
                 input_batch = [ins.cuda(cuda_device) for ins in input_batch]
@@ -778,26 +780,28 @@ class ModuleTrainer(object):
                        loader,
                        cuda_device=-1,
                        verbose=1):
+        self.model.train(mode=False)
         predictions = []
-        predict_probs = []
+        log_predict_probs = []
+        total_len = loader.__len__()
         for batch_idx, batch_data in enumerate(loader):
+            if (batch_idx + 1) % (total_len // 5) == 0:
+                print(batch_idx)
             if isinstance(batch_data, (tuple,list)):
                 input_batch = batch_data[0]
             if cuda_device > -1:
                 input_batch = Variable(input_batch.cuda(cuda_device), volatile=True)
             p_onehot = self.model(input_batch)
-            sum = th.sum(p_onehot.data, 1)
-            max_value, predicted = th.max(p_onehot.data, 1)
-            predict_proba = max_value / sum
-            predictions.extend(predicted)
-            predict_probs.extend(predict_proba)
+            log_predict_proba, predict_value = th.max(p_onehot.data, 1)
+            predictions.extend(predict_value)
+            log_predict_probs.extend(log_predict_proba)
 
         predictions = th.cat(predictions, 0)
-        predict_probs = th.cat(predict_probs, 0)
+        log_predict_probs = th.cat(log_predict_probs, 0)
         predictions = predictions.cpu().numpy()
-        predict_probs = predict_probs.cpu().numpy()
+        log_predict_probs = log_predict_probs.cpu().numpy()
 
-        return predictions, predict_probs
+        return predictions, log_predict_probs
 
     def predict_on_batch(self, 
                          inputs, 
@@ -835,9 +839,9 @@ class ModuleTrainer(object):
         total_samples = 0.
         nb_batches = int(math.ceil(len(inputs[0]) / batch_size))
         for batch_idx in range(nb_batches):
-            input_batch = [Variable(x[batch_idx*batch_size:(batch_idx+1)*batch_size]) for x in inputs]
+            input_batch = [Variable(x[batch_idx*batch_size:(batch_idx+1)*batch_size], volatile=True) for x in inputs]
             if has_target:
-                target_batch = [Variable(y[batch_idx*batch_size:(batch_idx+1)*batch_size]) for y in targets]
+                target_batch = [Variable(y[batch_idx*batch_size:(batch_idx+1)*batch_size], volatile=True) for y in targets]
 
             if cuda_device > -1:
                 input_batch = [ins.cuda(cuda_device) for ins in input_batch]
@@ -893,11 +897,11 @@ class ModuleTrainer(object):
                 has_target = True
             if not isinstance(input_batch, (list,tuple)):
                 input_batch = [input_batch]
-            input_batch = [Variable(ins) for ins in input_batch]
+            input_batch = [Variable(ins, volatile=True) for ins in input_batch]
             if has_target:
                 if not isinstance(target_batch, (list,tuple)):
                     target_batch = [target_batch]
-                target_batch = [Variable(targs) for targs in target_batch]
+                target_batch = [Variable(targs, volatile=True) for targs in target_batch]
                 nb_targets = len(target_batch)
 
             if cuda_device > -1:
@@ -957,9 +961,9 @@ class ModuleTrainer(object):
         else:
             has_multiple_loss_fns = False
 
-        input_batch = [Variable(x) for x in inputs]
+        input_batch = [Variable(x, volatile=True) for x in inputs]
         if has_target:
-            target_batch = [Variable(y) for y in targets]
+            target_batch = [Variable(y, volatile=True) for y in targets]
 
         if cuda_device > -1:
             input_batch = [ins.cuda(cuda_device) for ins in input_batch]

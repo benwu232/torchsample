@@ -46,7 +46,9 @@ class L2Regularizer(object):
 
     def __call__(self, module):
         w = module.weight
-        value = th.sum(th.pow(w,2)) * self.scale
+        #print(w.data)
+        value = th.sum(th.pow(w,2))
+        #print(value.data)
         loss = self.scale * value
         return loss
 
