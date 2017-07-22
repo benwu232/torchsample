@@ -662,7 +662,8 @@ class ModuleTrainer(object):
                     if self.tb_verbose >= 1:
                         #self.write_scalar_summaries(epoch_idx)
                         self.tb_log.scalar_summary('train_loss', loss.data[0], epoch_idx+1)
-                        self.tb_log.scalar_summary('train_acc', metric_logs['acc_metric'], epoch_idx+1)
+                        if self._has_metrics:
+                            self.tb_log.scalar_summary('train_acc', metric_logs['acc_metric'], epoch_idx+1)
                     if self.tb_verbose >= 2:
                         self.write_histo_summaries(epoch_idx)
                     #self.tb_log.scalar_summary('accuracy', metric_logs['acc_metric'], epoch_idx)
@@ -775,6 +776,27 @@ class ModuleTrainer(object):
             return out_list
             
         return th.cat(prediction_list,0)
+
+    def regression_predict_loader(self,
+                       loader,
+                       cuda_device=-1,
+                       verbose=1):
+        self.model.train(mode=False)
+        predictions = []
+        total_len = loader.__len__()
+        for batch_idx, batch_data in enumerate(loader):
+            if (batch_idx + 1) % (total_len // 5) == 0:
+                print(batch_idx)
+            if isinstance(batch_data, (tuple,list)):
+                input_batch = batch_data[0]
+            if cuda_device > -1:
+                input_batch = Variable(input_batch.cuda(cuda_device), volatile=True)
+            predict_value = self.model(input_batch)
+            predictions.append(predict_value)
+
+        predictions = th.cat(predictions, 0)
+        predictions = predictions.cpu().data.numpy()
+        return predictions, None
 
     def predict_loader(self,
                        loader,
