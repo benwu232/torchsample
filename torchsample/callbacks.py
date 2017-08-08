@@ -497,6 +497,7 @@ class ReduceLROnPlateau(Callback):
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
         logs['lr'] = [p['lr'] for p in self.model._optimizer.param_groups]
+        print('Current learning rate: ', logs['lr'])
         current_loss = logs.get(self.monitor)
         if current_loss is None:
             pass
@@ -514,7 +515,7 @@ class ReduceLROnPlateau(Callback):
                 if self.wait >= self.patience:
                     for p in self.model._optimizer.param_groups:
                         old_lr = p['lr']
-                        if old_lr > self.min_lr + 1e-4:
+                        if old_lr > self.min_lr + 1e-9:
                             new_lr = old_lr * self.factor
                             new_lr = max(new_lr, self.min_lr)
                             if self.verbose > 0:

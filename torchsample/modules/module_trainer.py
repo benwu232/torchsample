@@ -666,7 +666,9 @@ class ModuleTrainer(object):
                             self.tb_log.scalar_summary('train_acc', metric_logs['acc_metric'], epoch_idx+1)
                     if self.tb_verbose >= 2:
                         self.write_histo_summaries(epoch_idx)
+                    self.tb_log.scalar_summary
                     #self.tb_log.scalar_summary('accuracy', metric_logs['acc_metric'], epoch_idx)
+                    self.tb_log.flush()
 
                 # apply Epoch-level constraints if necessary
                 if self._has_constraints:

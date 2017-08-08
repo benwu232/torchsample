@@ -69,3 +69,7 @@ class TbLog(object):
         summary = tf.Summary(value=[tf.Summary.Value(tag=tag, histo=hist)])
         self.writer.add_summary(summary, step)
         self.writer.flush()
+
+    def flush(self):
+        self.writer.flush()
+
